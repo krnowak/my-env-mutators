@@ -50,6 +50,24 @@ add_to_env_var() {
     rebuild_env_var "${ev}"
 }
 
+clean_from_env_var() {
+    local ev="${1}"
+    local id="${2}"
+    declare -a new_array
+    declare -n id_array="KRNOWAK_ARRAY_${ev}"
+    declare -n id_to_value_map="KRNOWAK_MAP_${ev}"
+
+    for i in "${!id_array[@]}"; do
+        if [[ "${id_array[i]}" != "${id}" ]]; then
+            new_array+=( "${id_array[i]}" )
+        fi
+    done
+    id_array=("${new_array[@]}")
+    unset new_array
+    unset id_to_value_map["${id}"]
+    rebuild_env_var "${ev}"
+}
+
 reset_env_var() {
     local ev="${1}"
     declare -n id_array="KRNOWAK_ARRAY_${ev}"
