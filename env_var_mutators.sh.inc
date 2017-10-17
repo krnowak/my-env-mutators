@@ -120,3 +120,4 @@ KRNOWAK_REBUILD_FUNC_PS1DATA() {
 
 setup_env_var PATH
 setup_env_var PS1DATA
+setup_env_var GOPATH
