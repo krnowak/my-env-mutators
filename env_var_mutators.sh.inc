@@ -82,10 +82,16 @@ rebuild_env_var() {
 
 KRNOWAK_JOIN_BY() {
     local delimiter="${1}"
-    local first="${2}"
-    shift 2
-    echo -n "${first}"
-    printf "%s" "${@/#/${delimiter}}"
+    shift
+    if [[ ${#} -eq 0 ]]; then
+        :
+    elif [[ ${#} -eq 1 ]]; then
+        printf "%s" "${1}"
+    else
+        local first="${1}"
+        shift
+        printf "%s%s" "${first}" "${@/#/${delimiter}}"
+    fi
 }
 
 KRNOWAK_REBUILD_FUNC_PATH() {
