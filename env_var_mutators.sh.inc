@@ -10,7 +10,7 @@ dump_env_var() {
     echo "array (${id_array_var_name}): (${id_array[@]})"
     echo -n "map (${id_to_value_map_var_name}): ("
     for k in "${!id_to_value_map[@]}"; do
-	echo -n " [${k}]=${id_to_value_map[${k}]}"
+        echo -n " [${k}]=${id_to_value_map[${k}]}"
     done
     echo ' )'
     echo "original value: ${original_value}"
@@ -24,7 +24,7 @@ setup_env_var() {
     #declare -n original_value="KRNOWAK_ORIGINAL_VALUE_${ev}"
 
     if [[ -z "${!n1+x}" ]]; then
-	declare -g "${n1}"="${!ev}"
+        declare -g "${n1}"="${!ev}"
     fi
     declare -g -a id_array
     local n2="KRNOWAK_MAP_${ev}"
@@ -40,11 +40,11 @@ add_to_env_var() {
     declare -n id_to_value_map="KRNOWAK_MAP_${ev}"
 
     if [[ -z "${id_to_value_map[$id]}" ]]; then # unset
-	if [[ ${#id_array[@]} -gt 0 ]]; then
-	    id_array=("${id}" "${id_array[@]}")
-	else
-	    id_array=("${id}")
-	fi
+        if [[ ${#id_array[@]} -gt 0 ]]; then
+            id_array=("${id}" "${id_array[@]}")
+        else
+            id_array=("${id}")
+        fi
     fi
     id_to_value_map["${id}"]="${value}"
     rebuild_env_var "${ev}"
@@ -70,11 +70,11 @@ rebuild_env_var() {
     local values=()
 
     for id in "${id_array[@]}"; do
-	if [[ -z "${id_to_value_map[${id}]+x}" ]]; then #unset
-	    :
-	else
-	    values+=("${id_to_value_map[${id}]}")
-	fi
+        if [[ -z "${id_to_value_map[${id}]+x}" ]]; then #unset
+            :
+        else
+            values+=("${id_to_value_map[${id}]}")
+        fi
     done
 
     "${rebuild_func}" "${original_value}" "${values[@]}"
@@ -95,7 +95,7 @@ KRNOWAK_REBUILD_FUNC_PATH() {
 
     values+=("${@}")
     if [[ -n "${original_value}" ]]; then
-	values+=("${original_value}")
+        values+=("${original_value}")
     fi
     export PATH="$(KRNOWAK_JOIN_BY ':' "${values[@]}")"
 }
@@ -107,14 +107,14 @@ KRNOWAK_REBUILD_FUNC_PS1DATA() {
     local joined=''
 
     if [[ -n "${original_value}" ]]; then
-	values+=("${original_value}")
+        values+=("${original_value}")
     fi
     values+=("${@}")
     if [[ ${#values[@]} -gt 0 ]]; then
-	joined=$(KRNOWAK_JOIN_BY '], [' "${values[@]}")
-	export PS1="[\u@\h ([${joined}]) \W]\\$ "
+        joined=$(KRNOWAK_JOIN_BY '], [' "${values[@]}")
+        export PS1="[\u@\h ([${joined}]) \W]\\$ "
     else
-	export PS1='[\u@\h \W]\\$ '
+        export PS1='[\u@\h \W]\\$ '
     fi
 }
 
