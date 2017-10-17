@@ -94,16 +94,23 @@ KRNOWAK_JOIN_BY() {
     fi
 }
 
-KRNOWAK_REBUILD_FUNC_PATH() {
+KRNOWAK_REBUILD_LISTLIKE() {
     local original_value="${1}"
-    shift
+    local ev="${2}"
+    shift 2
     local values=()
 
     values+=("${@}")
     if [[ -n "${original_value}" ]]; then
         values+=("${original_value}")
     fi
-    export PATH="$(KRNOWAK_JOIN_BY ':' "${values[@]}")"
+    export "${ev}=$(KRNOWAK_JOIN_BY ':' "${values[@]}")"
+}
+
+KRNOWAK_REBUILD_FUNC_PATH() {
+    local original_value="${1}"
+    shift
+    KRNOWAK_REBUILD_LISTLIKE "${original_value}" 'PATH' "${@}"
 }
 
 KRNOWAK_REBUILD_FUNC_PS1DATA() {
