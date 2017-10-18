@@ -125,6 +125,20 @@ KRNOWAK_REBUILD_LISTLIKE() {
     export "${ev}=$(KRNOWAK_JOIN_BY ':' "${values[@]}")"
 }
 
+KRNOWAK_REBUILD_SINGULAR_NEWEST() {
+    local original_value="${1}"
+    local ev="${2}"
+    shift 2
+    local value=''
+
+    if [[ ${#} -gt 0 ]]; then
+        value="${1}"
+    else
+        value="${original_value}"
+    fi
+    export "${ev}=${value}"
+}
+
 KRNOWAK_REBUILD_FUNC_PATH() {
     local original_value="${1}"
     shift
