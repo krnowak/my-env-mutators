@@ -169,6 +169,13 @@ KRNOWAK_REBUILD_FUNC_GOPATH() {
     KRNOWAK_REBUILD_LISTLIKE "${original_value}" 'GOPATH' "${@}"
 }
 
+KRNOWAK_REBUILD_FUNC_KUBECONFIG() {
+    local original_value="${1}"
+    shift
+    KRNOWAK_REBUILD_SINGULAR_NEWEST "${original_value}" 'KUBECONFIG' "${@}"
+}
+
 setup_env_var PATH
 setup_env_var PS1DATA
 setup_env_var GOPATH
+setup_env_var KUBECONFIG
