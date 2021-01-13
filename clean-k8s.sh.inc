@@ -1,3 +1,0 @@
-clean_from_env_var PATH k8s
-clean_from_env_var KUBECONFIG k8s
-clean_from_env_var PS1DATA k8s
