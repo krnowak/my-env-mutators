@@ -175,6 +175,43 @@ KRNOWAK_REBUILD_FUNC_KUBECONFIG() {
     KRNOWAK_REBUILD_SINGULAR_NEWEST "${original_value}" 'KUBECONFIG' "${@}"
 }
 
+KRNOWAK_REBUILD_FUNC_CNI_PATH() {
+    local original_value="${1}"
+    shift
+    KRNOWAK_REBUILD_SINGULAR_NEWEST "${original_value}" 'CNI_PATH' "${@}"
+}
+
+function adapt_to_night_light {
+    declare properties night_light_active disabled_until_tomorrow
+    declare -a color_overrides
+
+    properties=$(gdbus introspect \
+                       --session \
+                       --dest org.gnome.SettingsDaemon.Color \
+                       --object-path /org/gnome/SettingsDaemon/Color \
+                       --only-properties)
+    night_light_active=$(echo "${properties}" \
+                             | grep 'NightLightActive' \
+                             | cut -d= -f2)
+    disabled_until_tomorrow=$(echo "${properties}" \
+                                  | grep 'DisabledUntilTomorrow' \
+                                  | cut -d= -f2)
+    color_overrides=(
+        'di=01;33'
+    )
+    if [[ "${night_light_active}" =~ 'true' ]] && [[ "${disabled_until_tomorrow}" =~ 'false' ]]; then
+        if [[ $(echo -n "${LS_COLORS}" | tail --bytes=1) == ':' ]]; then
+            :
+        else
+            LS_COLORS="${LS_COLORS}:"
+        fi
+        for override in "${color_overrides[@]}"; do
+            LS_COLORS="${LS_COLORS}${override}:"
+        done
+        export LS_COLORS
+    fi
+}
+
 setup_env_var PATH
 setup_env_var PS1DATA
 setup_env_var GOPATH
