@@ -1,1 +1,1 @@
-Append `. ~/env_var_mutators.sh.inc` to bashrc
+Create a directory where the go installations are, and there put the symlink to gen-dev-go.sh from this repo.
