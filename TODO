@@ -1,0 +1,2 @@
+- add a function that removes all the variables for a group, so cleaning up k8s variables would be simply "clean_all k8s" or something like that
+- add a function that ensures that the group was set up, so I don't need to add anything in the bash.rc
