@@ -2,8 +2,13 @@
 
 kgit_extra_opts=()
 kgit_return=1
+
+kgit_msg2() {
+    echo "kgit: ${*}" >&2
+}
+
 kgit_call() {
-    echo "kgit: Invoking '${@}'" >&2
+    kgit_msg2 "Invoking '${@}'"
     "${@}"
 }
 
@@ -14,43 +19,44 @@ while true; do
     done
 
     if [[ ${#} -eq 0 ]]; then
-        echo 'kgit: no command given'
+        kgit_msg2 'No command given'
         break
     fi
 
     kgit_exec=('kgit_call' 'git' "${kgit_extra_opts[@]}")
+    kgit_cmd="${1}"
+    shift
 
-    case "${1}" in
+    case "${kgit_cmd}" in
         fetch)
-            shift
             "${kgit_exec[@]}" fetch -pPtf "${@}" || break
             ;;
         wk)
-            shift
             "${kgit_exec[@]}" worktree list || break
             ;;
         wk-add)
-            shift
-            "${kgit_exec[@]}" worktree add -b "krnowak/${1}" "../${1}" || break
-            cd "../${1}" || break
+            kgit_name="${1}"; shift
+            "${kgit_exec[@]}" worktree add -b "krnowak/${kgit_name}" "../${kgit_name}" "${@}" || break
+            kgit_call cd "../${kgit_name}" || break
             ;;
         wk-remove)
-            shift
             "${kgit_exec[@]}" worktree remove --force "../${1}" || break
             "${kgit_exec[@]}" branch -D "krnowak/${1}" || break
             ;;
         amend-head)
-            shift
             "${kgit_exec[@]}" commit --amend --no-edit || break
             ;;
         merge)
-            shift
             kgit_branch=$("${kgit_exec[@]}" branch --show-current) || break
-            kgit_remote=$("${kgit_exec[@]}" config "branch.${kgit_branch}.remote") || { echo "kgit: Branch ${kgit_branch} is not a tracking branch" >&2; break; }
-            "${kgit_exec[@]}" merge "${kgit_remote}/${kgit_branch}" || break
+            kgit_remote=$("${kgit_exec[@]}" config "branch.${kgit_branch}.remote") || { kgit_msg2 "Branch ${kgit_branch} is not a tracking branch"; break; }
+            "${kgit_exec[@]}" merge --ff-only "${kgit_remote}/${kgit_branch}" || break
+            "${kgit_exec[@]}" submodule update || break
+            ;;
+        fpush)
+            "${kgit_exec[@]}" push --force-with-lease "${@}" || break
             ;;
         *)
-            echo "kgit: Unknown command '${1}'" >&2
+            kgit_msg2 "Unknown command '${kgit_cmd}'"
             break
             ;;
     esac
