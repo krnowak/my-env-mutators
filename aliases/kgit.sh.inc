@@ -1,8 +1,5 @@
 #!/bin/bash
 
-kgit_extra_opts=()
-kgit_return=1
-
 kgit_msg2() {
     echo "kgit: ${*}" >&2
 }
@@ -24,99 +21,217 @@ kgit_req_params_ge() {
     [[ "${#}" -ge "${num}" ]]
 }
 
-while true; do
-    while [[ ${#} -gt 0 ]] && [[ "${1}" = '-C' ]]; do
+kgit_req_params_le() {
+    local num="${1}"; shift
+
+    [[ "${#}" -le "${num}" ]]
+}
+
+kgit_cmd_fetch() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} [args…]"
+        kgit_msg2 '    forwards args to "git fetch -pPtf"'
+        return 0
+    fi
+    "${kgit_exec[@]}" fetch -pPtf "${@}" || return 1
+}
+
+kgit_cmd_wt() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 '    lists available worktrees'
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    "${kgit_exec[@]}" worktree list || return 1
+}
+
+kgit_cmd_wt_add() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} <name> [args…]"
+        kgit_msg2 '    creates a branch krnowak/name, creates a worktree at ../<name> (forwards the args here) and cds to it'
+        return 0
+    fi
+    kgit_req_params_ge 1 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name, rest is forwarded to 'git worktree add'"
+        return 1
+    }
+    local name="${1}"; shift
+    "${kgit_exec[@]}" worktree add -b "krnowak/${name}" "../${name}" "${@}" || return 1
+    kgit_call cd "../${name}" || return 1
+}
+
+kgit_cmd_wt_remove() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} <name>"
+        kgit_msg2 '    deletes a worktree at ../<name> and deletes a branch krnowak/<name>'
+        return 0
+    fi
+    kgit_req_params_eq 1 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes one argument, a base name"
+        return 1
+    }
+    local name="${1}"; shift
+    "${kgit_exec[@]}" worktree remove --force "../${name}" || return 1
+    "${kgit_exec[@]}" branch -D "krnowak/${name}" || return 1
+}
+
+kgit_cmd_amend_head() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 '    amends the commit without editing'
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    "${kgit_exec[@]}" commit --amend --no-edit || return 1
+}
+
+kgit_cmd_merge() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 '    merges changes from upstream branch to current branch'
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    local branch remote
+    branch=$("${kgit_exec[@]}" branch --show-current) || return 1
+    remote=$("${kgit_exec[@]}" config "branch.${branch}.remote") || {
+        kgit_msg2 "Branch ${branch} is not a tracking branch"
+        return 1
+    }
+    "${kgit_exec[@]}" merge --ff-only "${remote}/${branch}" || return 1
+    "${kgit_exec[@]}" submodule update || return 1
+}
+
+kgit_cmd_checkout() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} <branch>"
+        kgit_msg2 '    checks out <branch> and updates submodules'
+        return 0
+    fi
+    kgit_req_params_eq 1 "${0}" || {
+        kgit_msg2 "'${kgit_cmd}' takes one argument, a branch name"
+        return 1
+    }
+    local branch="${1}"; shift
+    "${kgit_exec[@]}" checkout "${branch}" || return 1
+    "${kgit_exec[@]}" submodule update || return 1
+}
+
+kgit_cmd_fpush() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} [args…]"
+        kgit_msg2 '    does a force-with-lease push, forwards args to git push'
+        return 0
+    fi
+    "${kgit_exec[@]}" push --force-with-lease "${@}" || return 1
+}
+
+kgit_cmd_clone() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} <url> <branch>"
+        kgit_msg2 '    clones a repo to <basename of <url> >/<branch> and cds to it'
+        return 0
+    fi
+    kgit_req_params_eq 2 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' needs two arguments, repository URL and branch name"
+        return 1
+    }
+    local repo="${1}"; shift
+    local branch="${1}"; shift
+    local dir="${repo}"
+    dir="${dir##*/}"
+    dir="${dir%.git}"
+    dir="${dir}/${branch}"
+    "${kgit_exec[@]}" clone --branch "${branch}" "${repo}" "${dir}" || return 1
+    kgit_call cd "${dir}" || return 1
+}
+
+kgit_cmd_fresh() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 '    nukes the changes'
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    "${kgit_exec[@]}" reset --hard HEAD || return 1
+    "${kgit_exec[@]}" clean -ffdx || return 1
+}
+
+kgit_list_cmds() {
+    kgit_msg2 "Available functions:"
+    declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/' | sort || return 1
+}
+
+kgit_cmd_help() {
+    if [[ -n "${KGIT_HELP}" ]]; then
+        kgit_msg2 "kgit ${kgit_cmd} [command]"
+        kgit_msg2 '    prints available commands or a command help'
+        return 0
+    fi
+    kgit_req_params_le 1 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes at most 1 argument, a command name"
+        return 1
+    }
+    if [[ "${#}" -gt 0 ]]; then
+        local func="kgit_cmd_${1//-/_}"
+        shift
+
+        if [[ $(type -t "${func}") = 'function' ]]; then
+            KGIT_HELP=x "${func}"
+        else
+            kgit_msg2 "No such command: '${1}'"
+            kgit_list_cmds || return 1
+        fi
+    else
+        kgit_list_cmds || return 1
+    fi
+}
+
+kgit_main() {
+    local kgit_extra_opts=()
+    if [[ ${#} -gt 0 ]] && [[ "${1}" = '-C' ]]; then
         kgit_extra_opts+=('-C' "${2}")
         shift 2
-    done
+    fi
 
     if [[ ${#} -eq 0 ]]; then
         kgit_msg2 'No command given'
-        break
+        return 1
     fi
 
-    kgit_exec=('kgit_call' 'git' "${kgit_extra_opts[@]}")
-    kgit_cmd="${1}"
+    local kgit_exec=('kgit_call' 'git' "${kgit_extra_opts[@]}")
+    local kgit_cmd="${1}"
+    local func="kgit_cmd_${kgit_cmd//-/_}"
     shift
 
-    case "${kgit_cmd}" in
-        fetch)
-            "${kgit_exec[@]}" fetch -pPtf "${@}" || break
-            ;;
-        wk)
-            kgit_req_params_eq 0 "${@}" || {
-                kgit_msg2 "'${kgit_cmd}' takes no arguments"
-                break
-            }
-            "${kgit_exec[@]}" worktree list || break
-            ;;
-        wk-add)
-            kgit_req_params_ge 1 "${@}" || {
-                kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name, rest is forwarded to 'git worktree add'"
-                break
-            }
-            kgit_name="${1}"; shift
-            "${kgit_exec[@]}" worktree add -b "krnowak/${kgit_name}" "../${kgit_name}" "${@}" || break
-            kgit_call cd "../${kgit_name}" || break
-            ;;
-        wk-remove)
-            kgit_req_params_eq 1 "${@}" || {
-                kgit_msg2 "'${kgit_cmd}' takes one argument, a base name"
-                break
-            }
-            "${kgit_exec[@]}" worktree remove --force "../${1}" || break
-            "${kgit_exec[@]}" branch -D "krnowak/${1}" || break
-            ;;
-        amend-head)
-            kgit_req_params_eq 0 "${@}" || {
-                kgit_msg2 "'${kgit_cmd}' takes no arguments"
-                break
-            }
-            "${kgit_exec[@]}" commit --amend --no-edit || break
-            ;;
-        merge)
-            kgit_req_params_eq 0 "${@}" || {
-                kgit_msg2 "'${kgit_cmd}' takes no arguments"
-                break
-            }
-            kgit_branch=$("${kgit_exec[@]}" branch --show-current) || break
-            kgit_remote=$("${kgit_exec[@]}" config "branch.${kgit_branch}.remote") || {
-                kgit_msg2 "Branch ${kgit_branch} is not a tracking branch"
-                break
-            }
-            "${kgit_exec[@]}" merge --ff-only "${kgit_remote}/${kgit_branch}" || break
-            "${kgit_exec[@]}" submodule update || break
-            ;;
-        fpush)
-            "${kgit_exec[@]}" push --force-with-lease "${@}" || break
-            ;;
-        clone)
-            kgit_req_params_eq 2 "${@}" || {
-                kgit_msg2 "'${kgit_cmd}' needs two arguments, repository URL and branch name"
-                break
-            }
-            kgit_repo="${1}"; shift
-            kgit_branch="${1}"; shift
-            kgit_dir="${kgit_repo}"
-            kgit_dir="${kgit_dir##*/}"
-            kgit_dir="${kgit_dir%.git}"
-            kgit_dir="${kgit_dir}/${kgit_branch}"
-            "${kgit_exec[@]}" clone --branch "${kgit_branch}" "${kgit_repo}" "${kgit_dir}" || break
-            kgit_call cd "${kgit_dir}" || break
-            ;;
-        fresh)
-            "${kgit_exec[@]}" reset --hard HEAD || break
-            "${kgit_exec[@]}" clean -ffdx || break
-            ;;
-        *)
-            kgit_msg2 "Unknown command '${kgit_cmd}'"
-            break
-            ;;
-    esac
-    kgit_return=0
-    break
-done
+    if [[ $(type -t "${func}") = 'function' ]]; then
+        "${func}" "${@}" || return 1
+    else
+        kgit_msg2 "Unknown command '${kgit_cmd}'" || return 1
+    fi
+    return 0
+}
 
-trap 'unset "${!kgit_@}"; trap - RETURN' RETURN
-
-return ${kgit_return}
+mapfile -t kgit_funcs < <(declare -F | cut -d' ' -f3 | grep '^kgit_')
+if kgit_main "${@}"; then
+    unset -f "${kgit_funcs[@]}"
+    unset -v "${!kgit_@}"
+    return 0
+else
+    unset -f "${kgit_funcs[@]}"
+    unset -v "${!kgit_@}"
+    return 1
+fi
