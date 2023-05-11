@@ -1,6 +1,6 @@
 function setup_ls_colors {
     declare -g -A overridden_colors original_colors
-    declare fixed_ls_colors
+    local fixed_ls_colors var original_color
 
     overridden_colors=(
         ['di']='01;33'
@@ -16,12 +16,13 @@ function setup_ls_colors {
     fi
     for var in "${!overridden_colors[@]}"; do
         original_color="$(echo "${fixed_ls_colors}" | grep -oe ":${var}=[^:]\+" | cut -f2 -d=)"
-        original_colors[${var}]="${original_color}"
+        # shellcheck disable=SC2034
+        original_colors["${var}"]="${original_color}"
     done
 }
 
 function adapt_to_night_light {
-    declare \
+    local \
         properties \
         night_light_active \
         disabled_until_tomorrow \
@@ -42,35 +43,31 @@ function adapt_to_night_light {
                                   | cut -d= -f2)
     fixed_ls_colors="${LS_COLORS}"
     # prepend : if there is none in the begining of the string
-    if [[ "${fixed_ls_colors:0:1}" != ':' ]]; then
+    if [[ "${fixed_ls_colors}" != ':'* ]]; then
         fixed_ls_colors=":${fixed_ls_colors}"
-        drop_at_start=1
-    else
-        drop_at_start=0
+        drop_at_start=x
     fi
     # append : if there is none in the end of the string
-    if [[ "${fixed_ls_colors: -1}" != ':' ]]; then
+    if [[ "${fixed_ls_colors}" != *':' ]]; then
         fixed_ls_colors="${fixed_ls_colors}:"
-        drop_at_end=1
-    else
-        drop_at_end=0
+        drop_at_end=x
     fi
-    if [[ "${night_light_active}" =~ 'true' ]] && [[ "${disabled_until_tomorrow}" =~ 'false' ]]; then
-        declare -n colors_source=overridden_colors
-    else
-        declare -n colors_source=original_colors
+    local source_name='original_colors'
+    if [[ "${night_light_active}" = *'true'* ]] && [[ "${disabled_until_tomorrow}" = *'false'* ]]; then
+        source_name='overridden_colors'
     fi
-    declare -a sed_parameters
-    declare color
+    local -n colors_source="${source_name}"
+    local -a sed_parameters
+    local color var
     for var in "${!colors_source[@]}"; do
         color="${colors_source[$var]}"
         sed_parameters+=('-e' "s/\(:${var}=\)[^:]\+\(:\)/\1${color}\2/")
     done
-    fixed_ls_colors="$(echo "${fixed_ls_colors}" | sed "${sed_parameters[@]}")"
-    if [[ "${drop_at_start}" -eq 1 ]]; then
+    fixed_ls_colors=$(echo "${fixed_ls_colors}" | sed "${sed_parameters[@]}")
+    if [[ -n "${drop_at_start}" ]]; then
         fixed_ls_colors="${fixed_ls_colors:1}"
     fi
-    if [[ "${drop_at_end}" -eq 1 ]]; then
+    if [[ -n "${drop_at_end}" ]]; then
         fixed_ls_colors="${fixed_ls_colors:0:-1}"
     fi
     export LS_COLORS="${fixed_ls_colors}"

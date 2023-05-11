@@ -16,6 +16,7 @@ krnowak_prepare_aliases_setup() {
         cmd="${cmd%.*}"
         # drop dirs
         cmd="${cmd##*/}"
+        # shellcheck disable=SC2139
         alias "${cmd}=source ${aliases_dir}/${cmd}.sh.inc"
     done
 }

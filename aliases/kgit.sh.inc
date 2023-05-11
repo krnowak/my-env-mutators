@@ -5,7 +5,7 @@ kgit_msg2() {
 }
 
 kgit_call() {
-    kgit_msg2 "Invoking '${@}'"
+    kgit_msg2 "Invoking '${*}'"
     "${@}"
 }
 

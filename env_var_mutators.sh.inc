@@ -8,7 +8,7 @@ dump_env_var() {
     local k
 
     echo "DUMP FOR ${ev}:"
-    echo "array (${id_array_var_name}): (${id_array[@]})"
+    echo "array (${id_array_var_name}): (${id_array[*]})"
     echo -n "map (${id_to_value_map_var_name}): ("
     for k in "${!id_to_value_map[@]}"; do
         echo -n " [${k}]=${id_to_value_map[${k}]}"
@@ -55,7 +55,9 @@ add_to_env_var() {
 
     ensure_env_var "${1}"
 
+    # shellcheck disable=SC2178
     local -n id_array="KRNOWAK_ARRAY_${ev}"
+    # shellcheck disable=SC2178
     local -n id_to_value_map="KRNOWAK_MAP_${ev}"
 
     if [[ -z "${id_to_value_map[$id]+x}" ]]; then # is unset
@@ -72,7 +74,9 @@ clean_from_env_var() {
     ensure_env_var "${1}"
 
     local -a new_array=()
+    # shellcheck disable=SC2178
     local -n id_array="KRNOWAK_ARRAY_${ev}"
+    # shellcheck disable=SC2178
     local -n id_to_value_map="KRNOWAK_MAP_${ev}"
     local id2
 
@@ -82,13 +86,15 @@ clean_from_env_var() {
         fi
     done
     id_array=( "${new_array[@]}" )
-    unset id_to_value_map["${id}"]
+    unset "id_to_value_map[${id}]"
     rebuild_env_var "${ev}"
 }
 
 reset_env_var() {
     local ev="${1}"
+    # shellcheck disable=SC2178
     local -n id_array="KRNOWAK_ARRAY_${ev}"
+    # shellcheck disable=SC2178
     local -n id_to_value_map="KRNOWAK_MAP_${ev}"
 
     unset id_array
@@ -99,7 +105,9 @@ reset_env_var() {
 
 rebuild_env_var() {
     local ev=${1}
+    # shellcheck disable=SC2178
     local -n id_array="KRNOWAK_ARRAY_${ev}"
+    # shellcheck disable=SC2178
     local -n id_to_value_map="KRNOWAK_MAP_${ev}"
     local -n original_value="KRNOWAK_ORIGINAL_VALUE_${ev}";
     local rebuild_func="KRNOWAK_REBUILD_FUNC_${ev}"
