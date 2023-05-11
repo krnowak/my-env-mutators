@@ -171,7 +171,7 @@ kgit_cmd_fresh() {
 }
 
 kgit_list_cmds() {
-    kgit_msg2 "Available functions:"
+    kgit_msg2 "Available commands:"
     declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/' | sort || return 1
 }
 
@@ -186,13 +186,14 @@ kgit_cmd_help() {
         return 1
     }
     if [[ "${#}" -gt 0 ]]; then
-        local func="kgit_cmd_${1//-/_}"
+        local kgit_cmd="${1}"
+        local func="kgit_cmd_${kgit_cmd//-/_}"
         shift
 
         if [[ $(type -t "${func}") = 'function' ]]; then
             KGIT_HELP=x "${func}"
         else
-            kgit_msg2 "No such command: '${1}'"
+            kgit_msg2 "No such command: '${kgit_cmd}'"
             kgit_list_cmds || return 1
         fi
     else
