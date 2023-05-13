@@ -138,21 +138,27 @@ kgit_cmd_fpush() {
 
 kgit_cmd_clone() {
     if [[ -n "${KGIT_HELP}" ]]; then
-        kgit_msg2 "kgit ${kgit_cmd} <url> <branch>"
-        kgit_msg2 '    clones a repo to <basename of <url> >/<branch> and cds to it'
+        kgit_msg2 "kgit ${kgit_cmd} <url>"
+        kgit_msg2 '    clones a repo to <basename of <url> >/<default branch> and cds to it'
         return 0
     fi
-    kgit_req_params_eq 2 "${@}" || {
-        kgit_msg2 "'${kgit_cmd}' needs two arguments, repository URL and branch name"
+    kgit_req_params_eq 1 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' needs one argument, a repository URL"
         return 1
     }
-    local repo="${1}"; shift
-    local branch="${1}"; shift
-    local dir="${repo}"
-    dir="${dir##*/}"
-    dir="${dir%.git}"
-    dir="${dir}/${branch}"
-    "${kgit_exec[@]}" clone --branch "${branch}" "${repo}" "${dir}" || return 1
+    local repo=${1}; shift
+    local default_branch
+    default_branch=$("${kgit_exec[@]}" ls-remote --symref "${repo}" | grep '^ref:[[:space:]].*[[:space:]]HEAD$' | sed -e 's#^.*refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#')
+    kgit_msg2 "Default branch is ${default_branch}"
+    local dir=${repo}
+    local disable_extglob=''
+    shopt -q extglob || { disable_extglob='x'; shopt -s extglob; }
+    dir=${dir%%+(/)}
+    [[ -z "${disable_extglob}" ]] || shopt -u extglob
+    dir=${dir##*/}
+    dir=${dir%.git}
+    dir="${dir}/${default_branch}"
+    "${kgit_exec[@]}" clone "${repo}" "${dir}" || return 1
     kgit_call cd "${dir}" || return 1
 }
 
