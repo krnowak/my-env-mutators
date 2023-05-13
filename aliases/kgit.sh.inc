@@ -148,7 +148,7 @@ kgit_cmd_clone() {
     }
     local repo=${1}; shift
     local default_branch
-    default_branch=$("${kgit_exec[@]}" ls-remote --symref "${repo}" | grep '^ref:[[:space:]].*[[:space:]]HEAD$' | sed -e 's#^.*refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#')
+    default_branch=$("${kgit_exec[@]}" ls-remote --symref "${repo}" HEAD | grep '^ref:[[:space:]].*[[:space:]]HEAD$' | sed -e 's#^.*refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#')
     kgit_msg2 "Default branch is ${default_branch}"
     local dir=${repo}
     local disable_extglob=''
