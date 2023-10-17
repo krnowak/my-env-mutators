@@ -10,33 +10,31 @@ else
 fi
 
 dev_file="dev${version}.sh.inc"
-clean_file="clean-go.sh.inc"
-dir="$(realpath "$(dirname "${0}")")"
-real_dir="$(dirname "$(realpath "${0}")")"
+clean_file='clean-go.sh.inc'
+dir=$(realpath "$(dirname "${0}")")
+real_dir=$(dirname "$(realpath "${0}")")
 mutators_lib="${real_dir}/env_var_mutators.sh.inc"
 gopath_rebuilder="${real_dir}/gopath_rebuilder.sh.inc"
-printf -v mutators_lib_escaped '%q' "${mutators_lib}"
-printf -v gopath_rebuilder_escaped '%q' "${gopath_rebuilder}"
-printf -v gopath_escaped '%q' "${PWD}/GOPATH"
+gopath="${PWD}/GOPATH"
 
-path_extra="${dir}/go-${version}/bin:${PWD}/GOPATH/bin"
+path_extra="${dir}/go-${version}/bin:${gopath}/bin"
 if [[ "${PWD}" != "${dir}" ]]; then
     path_extra+=":${dir}/GOPATH/bin"
 fi
-printf -v path_extra_escaped '%q' "${path_extra}"
 ps1_extra="go-${version}, $(basename "${PWD}")"
-printf -v ps1_extra_escaped '%q' "${ps1_extra}"
 
-{
-    echo "source ${mutators_lib_escaped}"
-    echo "source ${gopath_rebuilder_escaped}"
-    echo "evm_add GOPATH go ${gopath_escaped}"
-    echo "evm_add PATH go ${path_extra_escaped}"
-    echo "evm_add PS1 go ${ps1_extra_escaped}"
-} >"${dev_file}"
+df_lines=(
+    "source ${mutators_lib@Q}"
+    "source ${gopath_rebuilder@Q}"
+    "evm_add GOPATH go ${gopath@Q}"
+    "evm_add PATH go ${path_extra@Q}"
+    "evm_add PS1 go ${ps1_extra@Q}"
+)
+printf '%s\n' "${df_lines[@]}" >"${dev_file}"
 
-{
-    echo "source ${mutators_lib_escaped}"
-    echo "source ${gopath_rebuilder_escaped}"
-    echo "evm_clean_id go"
-} >"${clean_file}"
+cf_lines=(
+    "source ${mutators_lib@Q}"
+    "source ${gopath_rebuilder@Q}"
+    "evm_clean_id go"
+)
+printf '%s\n' "${cf_lines[@]}" >"${clean_file}"

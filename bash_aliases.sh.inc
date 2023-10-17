@@ -1,14 +1,16 @@
 #!/bin/bash
 
 krnowak_prepare_aliases_setup() {
-    local this_file this_dir aliases_dir cmd
-
+    local this_file
     this_file=$(realpath "${1}")
+
+    local this_dir aliases_dir cmd
     this_dir=$(dirname "${this_file}")
     aliases_dir="${this_dir}/aliases"
 
-    for cmd in "${aliases_dir}/"*.sh.inc; do
-        if [[ ! -f "${cmd}" ]]; then
+    local cmd
+    for cmd in "${aliases_dir}/"*'.sh.inc'; do
+        if [[ ! -f ${cmd} ]]; then
             continue
         fi
         # drop .sh.inc

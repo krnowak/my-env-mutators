@@ -10,25 +10,28 @@ kgit_call() {
 }
 
 kgit_req_params_eq() {
-    local num="${1}"; shift
+    local num
+    num=${1}; shift
 
-    [[ "${#}" -eq "${num}" ]]
+    [[ ${#} -eq "${num}" ]]
 }
 
 kgit_req_params_ge() {
-    local num="${1}"; shift
+    local num
+    num=${1}; shift
 
-    [[ "${#}" -ge "${num}" ]]
+    [[ ${#} -ge "${num}" ]]
 }
 
 kgit_req_params_le() {
-    local num="${1}"; shift
+    local num
+    num=${1}; shift
 
-    [[ "${#}" -le "${num}" ]]
+    [[ ${#} -le "${num}" ]]
 }
 
 kgit_cmd_fetch() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} [args…]"
         kgit_msg2 '    forwards args to "git fetch -pPtf"'
         return 0
@@ -37,7 +40,7 @@ kgit_cmd_fetch() {
 }
 
 kgit_cmd_wt() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd}"
         kgit_msg2 '    lists available worktrees'
         return 0
@@ -50,7 +53,7 @@ kgit_cmd_wt() {
 }
 
 kgit_cmd_wt_add() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <name> [args…]"
         kgit_msg2 '    creates a branch krnowak/name, creates a worktree at ../<name> (forwards the args here) and cds to it'
         return 0
@@ -59,13 +62,14 @@ kgit_cmd_wt_add() {
         kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name, rest is forwarded to 'git worktree add'"
         return 1
     }
-    local name="${1}"; shift
+    local name
+    name=${1}; shift
     "${kgit_exec[@]}" worktree add -b "krnowak/${name}" "../${name}" "${@}" || return 1
     kgit_call cd "../${name}" || return 1
 }
 
 kgit_cmd_wt_remove() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <name>"
         kgit_msg2 '    deletes a worktree at ../<name> and deletes a branch krnowak/<name>'
         return 0
@@ -74,13 +78,14 @@ kgit_cmd_wt_remove() {
         kgit_msg2 "'${kgit_cmd}' takes one argument, a base name"
         return 1
     }
-    local name="${1}"; shift
+    local name
+    name=${1}; shift
     "${kgit_exec[@]}" worktree remove --force "../${name}" || return 1
     "${kgit_exec[@]}" branch -D "krnowak/${name}" || return 1
 }
 
 kgit_cmd_amend_head() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd}"
         kgit_msg2 '    amends the commit without editing'
         return 0
@@ -93,7 +98,7 @@ kgit_cmd_amend_head() {
 }
 
 kgit_cmd_merge() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd}"
         kgit_msg2 '    merges changes from upstream branch to current branch'
         return 0
@@ -113,7 +118,7 @@ kgit_cmd_merge() {
 }
 
 kgit_cmd_checkout() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <branch>"
         kgit_msg2 '    checks out <branch> and updates submodules'
         return 0
@@ -122,13 +127,14 @@ kgit_cmd_checkout() {
         kgit_msg2 "'${kgit_cmd}' takes one argument, a branch name"
         return 1
     }
-    local branch="${1}"; shift
+    local branch
+    branch=${1}; shift
     "${kgit_exec[@]}" checkout "${branch}" || return 1
     "${kgit_exec[@]}" submodule update || return 1
 }
 
 kgit_cmd_fpush() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} [args…]"
         kgit_msg2 '    does a force-with-lease push, forwards args to git push'
         return 0
@@ -137,7 +143,7 @@ kgit_cmd_fpush() {
 }
 
 kgit_cmd_clone() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <url>"
         kgit_msg2 '    clones a repo to <basename of <url> >/<default branch> and cds to it'
         return 0
@@ -146,15 +152,16 @@ kgit_cmd_clone() {
         kgit_msg2 "'${kgit_cmd}' needs one argument, a repository URL"
         return 1
     }
-    local repo=${1}; shift
-    local default_branch
+    local repo
+    repo=${1}; shift
+    local default_branch dir disable_extglob
     default_branch=$("${kgit_exec[@]}" ls-remote --symref "${repo}" HEAD | grep '^ref:[[:space:]].*[[:space:]]HEAD$' | sed -e 's#^.*refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#')
     kgit_msg2 "Default branch is ${default_branch}"
-    local dir=${repo}
-    local disable_extglob=''
+    dir=${repo}
+    disable_extglob=''
     shopt -q extglob || { disable_extglob='x'; shopt -s extglob; }
     dir=${dir%%+(/)}
-    [[ -z "${disable_extglob}" ]] || shopt -u extglob
+    [[ -z ${disable_extglob} ]] || shopt -u extglob
     dir=${dir##*/}
     dir=${dir%.git}
     dir="${dir}/${default_branch}"
@@ -163,7 +170,7 @@ kgit_cmd_clone() {
 }
 
 kgit_cmd_fresh() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd}"
         kgit_msg2 '    nukes the changes'
         return 0
@@ -182,7 +189,7 @@ kgit_list_cmds() {
 }
 
 kgit_cmd_help() {
-    if [[ -n "${KGIT_HELP}" ]]; then
+    if [[ -n ${KGIT_HELP} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} [command]"
         kgit_msg2 '    prints available commands or a command help'
         return 0
@@ -191,10 +198,10 @@ kgit_cmd_help() {
         kgit_msg2 "'${kgit_cmd}' takes at most 1 argument, a command name"
         return 1
     }
-    if [[ "${#}" -gt 0 ]]; then
-        local kgit_cmd="${1}"
-        local func="kgit_cmd_${kgit_cmd//-/_}"
-        shift
+    if [[ ${#} -gt 0 ]]; then
+        local kgit_cmd func
+        kgit_cmd=${1}; shift
+        func="kgit_cmd_${kgit_cmd//-/_}"
 
         if [[ $(type -t "${func}") = 'function' ]]; then
             KGIT_HELP=x "${func}"
@@ -208,9 +215,10 @@ kgit_cmd_help() {
 }
 
 kgit_main() {
-    local kgit_extra_opts=()
-    if [[ ${#} -gt 0 ]] && [[ "${1}" = '-C' ]]; then
-        kgit_extra_opts+=('-C' "${2}")
+    local -a kgit_extra_opts
+    kgit_extra_opts=()
+    if [[ ${#} -gt 0 ]] && [[ ${1} = '-C' ]]; then
+        kgit_extra_opts+=( '-C' "$(realpath "${2}")" )
         shift 2
     fi
 
@@ -219,10 +227,10 @@ kgit_main() {
         return 1
     fi
 
-    local kgit_exec=('kgit_call' 'git' "${kgit_extra_opts[@]}")
-    local kgit_cmd="${1}"
-    local func="kgit_cmd_${kgit_cmd//-/_}"
-    shift
+    local kgit_exec kgit_cmd func
+    kgit_exec=('kgit_call' 'git' "${kgit_extra_opts[@]}")
+    kgit_cmd="${1}"; shift
+    func="kgit_cmd_${kgit_cmd//-/_}"
 
     if [[ $(type -t "${func}") = 'function' ]]; then
         "${func}" "${@}" || return 1
