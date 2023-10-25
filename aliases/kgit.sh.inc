@@ -10,22 +10,19 @@ kgit_call() {
 }
 
 kgit_req_params_eq() {
-    local num
-    num=${1}; shift
+    local num=${1}; shift
 
     [[ ${#} -eq "${num}" ]]
 }
 
 kgit_req_params_ge() {
-    local num
-    num=${1}; shift
+    local num=${1}; shift
 
     [[ ${#} -ge "${num}" ]]
 }
 
 kgit_req_params_le() {
-    local num
-    num=${1}; shift
+    local num=${1}; shift
 
     [[ ${#} -le "${num}" ]]
 }
@@ -62,8 +59,7 @@ kgit_cmd_wt_add() {
         kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name, rest is forwarded to 'git worktree add'"
         return 1
     }
-    local name
-    name=${1}; shift
+    local name=${1}; shift
     "${kgit_exec[@]}" worktree add -b "krnowak/${name}" "../${name}" "${@}" || return 1
     kgit_call cd "../${name}" || return 1
 }
@@ -78,8 +74,7 @@ kgit_cmd_wt_remove() {
         kgit_msg2 "'${kgit_cmd}' takes one argument, a base name"
         return 1
     }
-    local name
-    name=${1}; shift
+    local name=${1}; shift
     "${kgit_exec[@]}" worktree remove --force "../${name}" || return 1
     "${kgit_exec[@]}" branch -D "krnowak/${name}" || return 1
 }
@@ -127,8 +122,7 @@ kgit_cmd_checkout() {
         kgit_msg2 "'${kgit_cmd}' takes one argument, a branch name"
         return 1
     }
-    local branch
-    branch=${1}; shift
+    local branch=${1}; shift
     "${kgit_exec[@]}" checkout "${branch}" || return 1
     "${kgit_exec[@]}" submodule update || return 1
 }
@@ -152,8 +146,7 @@ kgit_cmd_clone() {
         kgit_msg2 "'${kgit_cmd}' needs one argument, a repository URL"
         return 1
     }
-    local repo
-    repo=${1}; shift
+    local repo=${1}; shift
     local default_branch dir disable_extglob
     default_branch=$("${kgit_exec[@]}" ls-remote --symref "${repo}" HEAD | grep '^ref:[[:space:]].*[[:space:]]HEAD$' | sed -e 's#^.*refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#')
     kgit_msg2 "Default branch is ${default_branch}"
@@ -212,9 +205,8 @@ kgit_cmd_help() {
         return 1
     }
     if [[ ${#} -gt 0 ]]; then
-        local kgit_cmd func
-        kgit_cmd=${1}; shift
-        func="kgit_cmd_${kgit_cmd//-/_}"
+        local kgit_cmd=${1} func="kgit_cmd_${kgit_cmd//-/_}"
+        shift
 
         if [[ $(type -t "${func}") = 'function' ]]; then
             KGIT_HELP=x "${func}"
@@ -228,8 +220,7 @@ kgit_cmd_help() {
 }
 
 kgit_main() {
-    local -a kgit_extra_opts
-    kgit_extra_opts=()
+    local -a kgit_extra_opts=()
     if [[ ${#} -gt 0 ]] && [[ ${1} = '-C' ]]; then
         kgit_extra_opts+=( '-C' "$(realpath "${2}")" )
         shift 2
@@ -242,7 +233,7 @@ kgit_main() {
 
     local kgit_exec kgit_cmd func
     kgit_exec=('kgit_call' 'git' "${kgit_extra_opts[@]}")
-    kgit_cmd="${1}"; shift
+    kgit_cmd=${1}; shift
     func="kgit_cmd_${kgit_cmd//-/_}"
 
     if [[ $(type -t "${func}") = 'function' ]]; then
