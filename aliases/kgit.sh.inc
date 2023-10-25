@@ -183,6 +183,19 @@ kgit_cmd_fresh() {
     "${kgit_exec[@]}" clean -ffdx || return 1
 }
 
+kgit_cmd_st() {
+    if [[ -n ${KGIT_HELP:-} ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 '    prints the status'
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    "${kgit_exec[@]}" status || return 1
+}
+
 kgit_list_cmds() {
     kgit_msg2 "Available commands:"
     declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/' | sort || return 1
