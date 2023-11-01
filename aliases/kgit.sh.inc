@@ -53,19 +53,42 @@ kgit_cmd_wt() {
     "${kgit_exec[@]}" worktree list || return 1
 }
 
+kgit_find_dir_with_dot_git() {
+    local -n out_dir_ref=${1}; shift
+
+    if [[ -e ./.git ]]; then
+        out_dir_ref=.
+        return 0
+    fi
+    local path=..
+
+    while [[ ! ${path} -ef / ]]; do
+        if [[ -e ${path}/.git ]]; then
+            out_dir_ref=${path}
+            return 0
+        fi
+        path+=/..
+    done
+    kgit_msg2 "we are not in a git repo, aren't we?" >&2
+    return 1
+}
+
 kgit_cmd_wt_add() {
     if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <name> [args…]"
-        kgit_msg2 '    creates a branch krnowak/name, creates a worktree at ../<name> (forwards the args here) and cds to it'
+        kgit_msg2 '    creates a branch krnowak/name, creates a worktree at location neighbouring the current worktree with passed name (forwards the args here) and cds to it'
         return 0
     fi
     kgit_req_params_ge 1 "${@}" || {
         kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name, rest is forwarded to 'git worktree add'"
         return 1
     }
+    local top_dir
+    kgit_find_dir_with_dot_git top_dir || return 1
     local name=${1}; shift
-    "${kgit_exec[@]}" worktree add -b "krnowak/${name}" "../${name}" "${@}" || return 1
-    kgit_call cd "../${name}" || return 1
+    local new_dir=${top_dir}/../${name}
+    "${kgit_exec[@]}" worktree add -b "krnowak/${name}" "${new_dir}" "${@}" || return 1
+    kgit_call cd "${new_dir}" || return 1
 }
 
 kgit_cmd_wt_remove() {
@@ -78,6 +101,8 @@ kgit_cmd_wt_remove() {
         kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name of a worktree"
         return 1
     }
+    local top_dir
+    kgit_find_dir_with_dot_git top_dir || return 1
     local uid
     uid=$(kgit_call id -u)
     local name
@@ -87,7 +112,7 @@ kgit_cmd_wt_remove() {
         # In theory, the files not owned by us could be still removed if
         # they are group-writable and we are a part of this group, or if
         # they are world-writable. These are niche cases anyway.
-        mapfile -t foreign_files < <(kgit_call find "../${name}" ! -uid "${uid}" -printf '%p (owned by %u, uid: %U)\n')
+        mapfile -t foreign_files < <(kgit_call find "${top_dir}/../${name}" ! -uid "${uid}" -printf '%p (owned by %u, uid: %U)\n')
         if [[ ${#foreign_files[@]} -gt 0 ]]; then
             kgit_msg2_lines \
                 "Worktree ${name} has files/directories not owned by us:" \
@@ -97,7 +122,7 @@ kgit_cmd_wt_remove() {
             failures+=( "${name} (foreign files)" )
             continue
         fi
-        if ! "${kgit_exec[@]}" worktree remove --force "../${name}"; then
+        if ! "${kgit_exec[@]}" worktree remove --force "${top_dir}/../${name}"; then
             failures+=( "${name} (failed to remove worktree)" )
             continue
         fi
