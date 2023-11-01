@@ -4,8 +4,12 @@ kgit_msg2() {
     echo "kgit: ${*}" >&2
 }
 
+kgit_msg2_lines() {
+    printf 'kgit: %s\n' "${@}" >&2
+}
+
 kgit_call() {
-    kgit_msg2 "Invoking '${*}'"
+    kgit_msg2 "Invoking ${*@Q}"
     "${@}"
 }
 
@@ -74,7 +78,22 @@ kgit_cmd_wt_remove() {
         kgit_msg2 "'${kgit_cmd}' takes one argument, a base name"
         return 1
     }
+    local uid
+    uid=$(kgit_call id -u)
     local name=${1}; shift
+    local -a foreign_files
+    # In theory, the files not owned by us could be still removed if
+    # they are group-writable and we are a part of this group, or if
+    # they are world-writable. These are niche cases anyway.
+    mapfile -t foreign_files < <(kgit_call find "../${name}" ! -uid "${uid}" -printf '%p (owned by %u, uid: %U)\n')
+    if [[ ${#foreign_files[@]} -gt 0 ]]; then
+        kgit_msg2_lines \
+            "Worktree ${name} has files/directories not owned by us:" \
+            "${foreign_files[@]/#/    }" \
+            '' \
+            'Remove them or change their ownership, "git worktree remove" handles this badly.'
+        return 1
+    fi
     "${kgit_exec[@]}" worktree remove --force "../${name}" || return 1
     "${kgit_exec[@]}" branch -D "krnowak/${name}" || return 1
 }
