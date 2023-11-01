@@ -70,32 +70,51 @@ kgit_cmd_wt_add() {
 
 kgit_cmd_wt_remove() {
     if [[ -n ${KGIT_HELP:-} ]]; then
-        kgit_msg2 "kgit ${kgit_cmd} <name>"
-        kgit_msg2 '    deletes a worktree at ../<name> and deletes a branch krnowak/<name>'
+        kgit_msg2 "kgit ${kgit_cmd} <name> [<name2> [<name3> [...]]]"
+        kgit_msg2 '    deletes worktrees at ../<name> and deletes a branch krnowak/<name> for all passed names'
         return 0
     fi
-    kgit_req_params_eq 1 "${@}" || {
-        kgit_msg2 "'${kgit_cmd}' takes one argument, a base name"
+    kgit_req_params_ge 1 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name of a worktree"
         return 1
     }
     local uid
     uid=$(kgit_call id -u)
-    local name=${1}; shift
-    local -a foreign_files
-    # In theory, the files not owned by us could be still removed if
-    # they are group-writable and we are a part of this group, or if
-    # they are world-writable. These are niche cases anyway.
-    mapfile -t foreign_files < <(kgit_call find "../${name}" ! -uid "${uid}" -printf '%p (owned by %u, uid: %U)\n')
-    if [[ ${#foreign_files[@]} -gt 0 ]]; then
+    local name
+    local -a foreign_files failures
+    failures=()
+    for name; do
+        # In theory, the files not owned by us could be still removed if
+        # they are group-writable and we are a part of this group, or if
+        # they are world-writable. These are niche cases anyway.
+        mapfile -t foreign_files < <(kgit_call find "../${name}" ! -uid "${uid}" -printf '%p (owned by %u, uid: %U)\n')
+        if [[ ${#foreign_files[@]} -gt 0 ]]; then
+            kgit_msg2_lines \
+                "Worktree ${name} has files/directories not owned by us:" \
+                "${foreign_files[@]/#/    }" \
+                '' \
+                'Remove them or change their ownership, "git worktree remove" handles this badly.'
+            failures+=( "${name} (foreign files)" )
+            continue
+        fi
+        if ! "${kgit_exec[@]}" worktree remove --force "../${name}"; then
+            failures+=( "${name} (failed to remove worktree)" )
+            continue
+        fi
+        if ! "${kgit_exec[@]}" branch -D "krnowak/${name}"; then
+            failures+=( "${name} (failed to remove branch)" )
+            continue
+        fi
+    done
+    if [[ ${#failures[@]} -gt 0 ]]; then
         kgit_msg2_lines \
-            "Worktree ${name} has files/directories not owned by us:" \
-            "${foreign_files[@]/#/    }" \
             '' \
-            'Remove them or change their ownership, "git worktree remove" handles this badly.'
+            '' \
+            'Failed to remove the following worktrees:' \
+            "${failures[@]/#/    }"
         return 1
     fi
-    "${kgit_exec[@]}" worktree remove --force "../${name}" || return 1
-    "${kgit_exec[@]}" branch -D "krnowak/${name}" || return 1
+    return 0
 }
 
 kgit_cmd_amend_head() {
