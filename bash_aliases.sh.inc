@@ -21,6 +21,8 @@ krnowak_prepare_aliases_setup() {
         # shellcheck disable=SC2139
         alias "${cmd}=source ${aliases_dir}/${cmd}.sh.inc"
     done
+
+    alias kavm="${this_dir}/kavm.sh"
 }
 
 if [[ ${#BASH_SOURCE[@]} -gt 0 ]]; then
