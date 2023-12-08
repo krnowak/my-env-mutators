@@ -31,13 +31,64 @@ kgit_req_params_le() {
     [[ ${#} -le "${num}" ]]
 }
 
+kgit_proc_sub_begin() {
+    local -n state_map=${1}; shift
+    # rest are commands to execute
+    local fd pid
+
+    exec {fd}< <("${@}")
+    pid=$!
+    state_map['fd']=${fd}
+    state_map['pid']=${pid}
+}
+
+kgit_proc_sub_end() {
+    local -n state_map=${1}; shift
+    local fd pid
+    fd=${state_map['fd']}
+    pid=${state_map['pid']}
+
+    exec {fd}<&-
+    wait "${pid}"
+}
+
+kgit_proc_sub_to_array() {
+    local array_name=${1}; shift
+    # rest are commands to execute
+
+    local -A kpsta_state_map=()
+    kgit_proc_sub_begin kpsta_state_map "${@}"
+    local fd=${kpsta_state_map['fd']}
+    mapfile -t "${array_name}" <&"${fd}"
+    kgit_proc_sub_end kpsta_state_map
+}
+
 kgit_cmd_fetch() {
     if [[ -n ${KGIT_HELP:-} ]]; then
-        kgit_msg2 "kgit ${kgit_cmd} [args…]"
+        kgit_msg2 "kgit ${kgit_cmd}"
         kgit_msg2 '    forwards args to "git fetch -pPtf"'
         return 0
     fi
-    "${kgit_exec[@]}" fetch -pPtf "${@}" || return 1
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    local -a kcf_remotes
+    kgit_proc_sub_to_array kcf_remotes "${kgit_exec[@]}" remote || return 1
+    local remote origin_idx=0
+    for remote in "${kcf_remotes[@]}"; do
+        if [[ ${remote} = 'origin' ]]; then
+            break
+        fi
+        origin_idx=$((origin_idx + 1))
+    done
+    if [[ ${origin_idx} -lt ${#kcf_remotes[@]} ]]; then
+        "${kgit_exec[@]}" fetch -pPtf origin || return 1
+        unset "kcf_remotes[${origin_idx}]"
+    fi
+    for remote in "${kcf_remotes[@]}"; do
+        "${kgit_exec[@]}" fetch -ptf "${remote}" || return 1
+    done
 }
 
 kgit_cmd_wt() {
