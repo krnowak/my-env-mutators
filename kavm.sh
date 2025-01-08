@@ -531,7 +531,7 @@ function kavm_cmd_delete {
         vm_id=$(jq -r '.id' <"${KAVM_STATE_DIR}/vm")
         priv_ip=$(jq -r '.privateIpAddress' <"${KAVM_STATE_DIR}/vm")
         pub_ip=$(jq -r '.publicIpAddress' <"${KAVM_STATE_DIR}/vm")
-        info "Destroying VM ${vm_name@Q}"
+        info "Destroying VM ${vm_id@Q}"
         az vm delete --yes --ids "${vm_id}"
         info 'Removing VM IP addresses from known hosts'
         ssh-keygen -f ~/.ssh/known_hosts -R "${priv_ip}"
