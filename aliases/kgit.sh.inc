@@ -309,7 +309,7 @@ kgit_list_cmds() {
 }
 
 kgit_cmd_help() {
-    if [[ -n ${KGIT_HELP} ]]; then
+    if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} [command]"
         kgit_msg2 '    prints available commands or a command help'
         return 0
@@ -319,8 +319,9 @@ kgit_cmd_help() {
         return 1
     }
     if [[ ${#} -gt 0 ]]; then
-        local kgit_cmd=${1} func="kgit_cmd_${kgit_cmd//-/_}"
+        local kgit_cmd=${1}
         shift
+        local func="kgit_cmd_${kgit_cmd//-/_}"
 
         if [[ $(type -t "${func}") = 'function' ]]; then
             KGIT_HELP=x "${func}"
