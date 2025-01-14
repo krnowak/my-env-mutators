@@ -367,6 +367,27 @@ kgit_cmd_st() {
     "${kgit_exec[@]}" status || return 1
 }
 
+kgit_cmd_rtu() {
+    if [[ -n ${KGIT_HELP:-} ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 '    resets the branch to upstream branch'
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes no arguments"
+        return 1
+    }
+    local cb u ub
+    cb=$("${kgit_exec[@]}" rev-parse --abbrev-ref HEAD)
+    u=$("${kgit_exec[@]}" config --get "branch.${cb}.remote")
+    ub=$("${kgit_exec[@]}" config --get "branch.${cb}.merge")
+    if [[ ${ub} != refs/heads/* ]]; then
+        kgit_msg2 "invalid value for merge key, expected it to begin with refs/heads/"
+        return 1
+    fi
+    "${kgit_exec[@]}" reset --hard "${u}/${ub#refs/heads/}"
+}
+
 kgit_list_cmds() {
     kgit_msg2 "Available commands:"
     declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/' | sort || return 1
