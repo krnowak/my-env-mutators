@@ -126,19 +126,83 @@ kgit_find_dir_with_dot_git() {
 
 kgit_cmd_wt_add() {
     if [[ -n ${KGIT_HELP:-} ]]; then
-        kgit_msg2 "kgit ${kgit_cmd} <name> [args…]"
-        kgit_msg2 '    creates a branch krnowak/name, creates a worktree at location neighbouring the current worktree with passed name (forwards the args here) and cds to it'
+        kgit_msg2 "kgit ${kgit_cmd} [<flags>] [--] <name>"
+        kgit_msg2 '    creates a branch krnowak/<name>, creates a worktree at location neighbouring the current worktree with passed name and cds to it'
+        kgit_msg2 '    flags:'
+        kgit_msg2 '    -u <remote>       upstream name used for tracking (defaults to origin)'
+        kgit_msg2 '    -s                track upstream branch with the same name'
+        kgit_msg2 '    -o <other_name>   track upstream branch <other_name>'
+        kgit_msg2 '    -l <local_name>   base on <local_name> branch instead of current branch'
         return 0
     fi
-    kgit_req_params_ge 1 "${@}" || {
-        kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name, rest is forwarded to 'git worktree add'"
-        return 1
-    }
     local top_dir
     kgit_find_dir_with_dot_git top_dir || return 1
+    local u=origin
+    local ub track_same track_other use_local
+    while [[ ${#} -gt 0 ]]; do
+        case ${1} in
+            -u)
+                u=${2}
+                shift 2
+                ;;
+            -s)
+                if [[ -n ${track_other:-} || -n ${use_local:-} ]]; then
+                    kgit_msg2 '-s, -o and -l are mutually exclusive'
+                    return 1
+                fi
+                track_same=x
+                shift
+                ;;
+            -o)
+                if [[ -n ${track_same:-} || -n ${use_local:-} ]]; then
+                    kgit_msg2 '-s, -o and -l are mutually exclusive'
+                    return 1
+                fi
+                track_other=x
+                ub=${2}
+                shift 2
+                ;;
+            -l)
+                if [[ -n ${track_same:-} || -n ${track_other:-} ]]; then
+                    kgit_msg2 '-s, -o and -l are mutually exclusive'
+                    return 1
+                fi
+                use_local=x
+                ub=${2}
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                kgit_msg2 "unknown flag ${1@Q}"
+                return 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    kgit_req_params_ge 1 "${@}" || {
+        kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name"
+        return 1
+    }
     local name=${1}; shift
     local new_dir=${top_dir}/../${name}
-    "${kgit_exec[@]}" worktree add -b "krnowak/${name}" "${new_dir}" "${@}" || return 1
+    if [[ -n ${track_same} ]]; then
+        ub=krnowak/${name}
+    fi
+    local -a args=(
+        worktree add -b "krnowak/${name}" "${new_dir}"
+    )
+    if [[ -n ${track_same:-} || -n ${track_other:-} ]]; then
+        args+=("${u}/${ub}")
+    fi
+    if [[ -n ${use_local} ]]; then
+        args+=("${ub}")
+    fi
+    "${kgit_exec[@]}" "${args[@]}" || return 1
     kgit_call cd "${new_dir}" || return 1
 }
 
