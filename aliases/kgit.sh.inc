@@ -325,9 +325,58 @@ kgit_cmd_clone() {
         return 1
     }
     local repo=${1}; shift
-    local default_branch dir disable_extglob
-    default_branch=$("${kgit_exec[@]}" ls-remote --symref "${repo}" HEAD | grep '^ref:[[:space:]].*[[:space:]]HEAD$' | sed -e 's#^.*refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$#\1#')
-    kgit_msg2 "Default branch is ${default_branch}"
+    local first second third
+    local commit_hash ref head_hash old_head
+    local -A commit_hash_to_shortest_ref
+    local default_branch shortest_ref
+    while read -r first second third; do
+        if [[ ${#first} -ne 40 || ! ${first} =~ ^[0-9a-zA-Z]*$ ]]; then
+            if [[ ${first} = 'ref:' && ${third} = 'HEAD' && ${second} = refs/heads/* ]]; then
+                default_branch=${second#'refs/heads/'}
+                break
+            fi
+            continue
+        fi
+        commit_hash=${first}
+        ref=${second}
+        case ${ref} in
+            'HEAD')
+                head_hash=${commit_hash}
+                ;;
+            'refs/heads/'*)
+                ref=${ref#'refs/heads/'}
+                old_head=${commit_hash_to_shortest_ref["${commit_hash}"]:-}
+                if [[ -z ${old_head} || ${#old_head} -gt ${#ref} ]]; then
+                    commit_hash_to_shortest_ref["${commit_hash}"]=${ref}
+                fi
+                if [[ -z ${shortest_ref} || ${#shortest_ref} -gt ${#ref} ]]; then
+                    shortest_ref=${ref}
+                fi
+                ;;
+        esac
+    done < <("${kgit_exec[@]}" ls-remote --symref "${repo}")
+    if [[ -z ${default_branch:-} ]]; then
+        if [[ -n ${head_hash:-} ]]; then
+            default_branch=${commit_hash_to_shortest_ref["${head_hash}"]}
+        fi
+    fi
+    local printed=''
+    if [[ -z ${printed} && -n ${default_branch:-} ]]; then
+        kgit_msg2 "Default branch is ${default_branch}"
+        printed=x
+    else
+        default_branch=${shortest_ref:-}
+    fi
+    if [[ -z ${printed} && -n ${default_branch:-} ]]; then
+        kgit_msg2 "No branch points to HEAD, picking one with shortest name - ${default_branch}"
+        printed=x
+    fi
+    if [[ -z ${printed} && -z ${default_branch:-} ]]; then
+        default_branch=master
+        kgit_msg2 "No heads in repo? Assuming default branch as ${default_branch}"
+        printed=x
+    fi
+    local dir disable_extglob
     dir=${repo}
     disable_extglob=''
     shopt -q extglob || { disable_extglob='x'; shopt -s extglob; }
