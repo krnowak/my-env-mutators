@@ -318,8 +318,30 @@ kgit_cmd_clone() {
     if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <url>"
         kgit_msg2 '    clones a repo to <basename of <url> >/<default branch> and cds to it'
+        kgit_msg2 '    flags:'
+        kgit_msg2 '    -d <directory>    directory name to use instead of basename of <url>'
         return 0
     fi
+    local dir=''
+    while [[ ${#} -gt 0 ]]; do
+        case ${1} in
+            -d)
+                dir=${2}
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                kgit_msg2 "unknown flag ${1@Q}"
+                return 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
     kgit_req_params_eq 1 "${@}" || {
         kgit_msg2 "'${kgit_cmd}' needs one argument, a repository URL"
         return 1
@@ -376,14 +398,17 @@ kgit_cmd_clone() {
         kgit_msg2 "No heads in repo? Assuming default branch as ${default_branch}"
         printed=x
     fi
-    local dir disable_extglob
-    dir=${repo}
-    disable_extglob=''
-    shopt -q extglob || { disable_extglob='x'; shopt -s extglob; }
-    dir=${dir%%+(/)}
-    [[ -z ${disable_extglob} ]] || shopt -u extglob
-    dir=${dir##*/}
-    dir=${dir%.git}
+    if [[ -z ${dir} ]]; then
+        local disable_extglob
+        dir=${repo}
+        disable_extglob=''
+        shopt -q extglob || { disable_extglob='x'; shopt -s extglob; }
+        dir=${dir%%+(/)}
+        [[ -z ${disable_extglob} ]] || shopt -u extglob
+        unset disable_extglob
+        dir=${dir##*/}
+        dir=${dir%.git}
+    fi
     dir="${dir}/${default_branch}"
     "${kgit_exec[@]}" clone "${repo}" "${dir}" || return 1
     kgit_call cd "${dir}" || return 1
