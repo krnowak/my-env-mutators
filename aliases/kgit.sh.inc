@@ -462,6 +462,25 @@ kgit_cmd_rtu() {
     "${kgit_exec[@]}" reset --hard "${u}/${ub#refs/heads/}"
 }
 
+kgit_cmd_done() {
+    if [[ -n ${KGIT_HELP:-} ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 "    staged all changed and untracked files, commits them with message 'work' and pushes the branch"
+        return 0
+    fi
+    kgit_req_params_eq 0 "${@}" || {
+        kgit_msg2 "${kgit_cmd@Q} takes no arguments"
+        return 1
+    }
+    if [[ -z $("${kgit_exec[@]}" status --porcelain=v2 --untracked-files=all) ]]; then
+        kgit_msg2 "nothing to do"
+    fi
+    "${kgit_exec[@]}" add --all
+    "${kgit_exec[@]}" commit -m work
+    "${kgit_exec[@]}" show
+    "${kgit_exec[@]}" push
+}
+
 kgit_list_cmds() {
     kgit_msg2 "Available commands:"
     declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/' | sort || return 1
