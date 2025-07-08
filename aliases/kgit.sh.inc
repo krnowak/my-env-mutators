@@ -477,7 +477,6 @@ kgit_cmd_done() {
     fi
     "${kgit_exec[@]}" add --all
     "${kgit_exec[@]}" commit -m work
-    "${kgit_exec[@]}" show
     "${kgit_exec[@]}" push
 }
 
