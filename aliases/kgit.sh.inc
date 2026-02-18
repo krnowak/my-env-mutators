@@ -465,7 +465,7 @@ kgit_cmd_rtu() {
 kgit_cmd_done() {
     if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd}"
-        kgit_msg2 "    staged all changed and untracked files, commits them with message 'work' and pushes the branch"
+        kgit_msg2 "    stages all changed and untracked files, commits them with message 'work' and pushes the branch"
         return 0
     fi
     kgit_req_params_eq 0 "${@}" || {
