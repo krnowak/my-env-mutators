@@ -482,7 +482,7 @@ kgit_cmd_done() {
 
 kgit_list_cmds() {
     kgit_msg2 "Available commands:"
-    declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/' | sort || return 1
+    declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/g' | sort || return 1
 }
 
 kgit_cmd_help() {
