@@ -480,6 +480,40 @@ kgit_cmd_done() {
     "${kgit_exec[@]}" push
 }
 
+kgit_cmd_retag_and_push() {
+    if [[ -n ${KGIT_HELP:-} ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 "    recreates the tag on top of current branch and pushes it to a remote"
+        return 0
+    fi
+    kgit_req_params_eq 2 "${@}" || {
+        kgit_msg2 "${kgit_cmd@Q} takes two arguments: a remote name and a tag"
+        return 1
+    }
+    local remote=${1}; shift
+    local tag=${1}; shift
+
+    if ! "${kgit_exec[@]}" show-ref --tags --quiet "${tag}"; then
+        kgit_msg2 "tag ${tag@Q} does not exist"
+    fi
+    local -a kcrap_remotes
+    kgit_proc_sub_to_array kcrap_remotes "${kgit_exec[@]}" remote || return 1
+    local known_remote found=''
+    for known_remote in "${kcrap_remotes[@]}"; do
+        if [[ ${known_remote} = "${remote}" ]]; then
+            found=x
+            break
+        fi
+    done
+    if [[ -z ${found} ]]; then
+        kgit_msg2 "remote ${remote@Q} is not known"
+        return 1
+    fi
+    "${kgit_exec[@]}" tag -d "${tag}" || return 1
+    "${kgit_exec[@]}" tag "${tag}" || return 1
+    "${kgit_exec[@]}" push --force "${remote}" "${tag}" || return 1
+}
+
 kgit_list_cmds() {
     kgit_msg2 "Available commands:"
     declare -F | cut -d' ' -f3 | grep '^kgit_cmd_' | sed -e 's/kgit_cmd_//' -e 's/_/-/g' | sort || return 1
