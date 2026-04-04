@@ -318,6 +318,8 @@ kgit_cmd_clone() {
     if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <url>"
         kgit_msg2 '    clones a repo to <basename of <url> >/<default branch> and cds to it'
+        kgit_msg2 '    also applies local config from overrides in .kgit-overrides if found all the way to /'
+        kgit_msg2 '    the overrides file contains key=value pairs that are forwarded to git config --local'
         kgit_msg2 '    flags:'
         kgit_msg2 '    -d <directory>    directory name to use instead of basename of <url>'
         return 0
@@ -412,6 +414,23 @@ kgit_cmd_clone() {
     dir="${dir}/${default_branch}"
     "${kgit_exec[@]}" clone "${repo}" "${dir}" || return 1
     kgit_call cd "${dir}" || return 1
+    local overrides_path
+    overrides_path=${PWD}/.kgit-overrides
+    while true; do
+        if [[ -e ${overrides_path} || ${overrides_path} = '/.kgit-overrides' ]]; then
+            break
+        fi
+        overrides_path=${overrides_path%/*}
+        overrides_path=${overrides_path%/*}/.kgit-overrides
+    done
+    if [[ -f ${overrides_path} ]]; then
+        local pair key value
+        while read -r pair; do
+            key=${pair%%=*}
+            value=${pair#*=}
+            "${kgit_exec[@]}" config set --local "${key}" "${value}"
+        done <${overrides_path}
+    fi
 }
 
 kgit_cmd_fresh() {
