@@ -106,19 +106,26 @@ kgit_cmd_wt() {
 
 kgit_find_dir_with_dot_git() {
     local -n out_dir_ref=${1}; shift
+    local -n out_subdir_ref=${1}; shift
 
     if [[ -e ./.git ]]; then
         out_dir_ref=.
+        sub_dir_ref=.
         return 0
     fi
     local path=..
+    local subpath=${PWD##*/}
+    local pwd_without_subpath
 
     while [[ ! ${path} -ef / ]]; do
         if [[ -e ${path}/.git ]]; then
             out_dir_ref=${path}
+            out_subdir_ref=${subpath}
             return 0
         fi
         path+=/..
+        pwd_without_subpath=${PWD%/"${subpath}"}
+        subpath=${pwd_without_subpath##*/}/${subpath}
     done
     kgit_msg2 "we are not in a git repo, aren't we?" >&2
     return 1
@@ -135,8 +142,8 @@ kgit_cmd_wt_add() {
         kgit_msg2 '    -l <local_name>   base on <local_name> branch instead of current branch'
         return 0
     fi
-    local top_dir
-    kgit_find_dir_with_dot_git top_dir || return 1
+    local top_dir sub_dir
+    kgit_find_dir_with_dot_git top_dir sub_dir || return 1
     local u=origin
     local ub track_same track_other use_local
     while [[ ${#} -gt 0 ]]; do
@@ -203,7 +210,11 @@ kgit_cmd_wt_add() {
         args+=("${ub}")
     fi
     "${kgit_exec[@]}" "${args[@]}" || return 1
-    kgit_call cd "${new_dir}" || return 1
+    if [[ -d ${new_dir}/${sub_dir} ]]; then
+        kgit_call cd "${new_dir}/${sub_dir}" || return 1
+    else
+        kgit_call cd "${new_dir}" || return 1
+    fi
 }
 
 kgit_cmd_wt_remove() {
@@ -216,8 +227,8 @@ kgit_cmd_wt_remove() {
         kgit_msg2 "'${kgit_cmd}' takes at least one argument, a base name of a worktree"
         return 1
     }
-    local top_dir
-    kgit_find_dir_with_dot_git top_dir || return 1
+    local top_dir sub_dir_unused
+    kgit_find_dir_with_dot_git top_dir sub_dir_unused || return 1
     local uid
     uid=$(kgit_call id -u)
     local name
