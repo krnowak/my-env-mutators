@@ -53,13 +53,22 @@ kgit_proc_sub_end() {
 }
 
 kgit_proc_sub_to_array() {
+    local mapfile_args=( '-t' )
+    while [[ ${#} -gt 0 ]]; do
+        case ${1} in
+            -z) mapfile_args+=( -d '' ); shift;;
+            -*) kgit_msg2 "unknown flag ${1@Q} passed to kgit_proc_sub_to_array"; return 1;;
+            --) shift; break;;
+            *) break;;
+        esac
+    done
     local array_name=${1}; shift
     # rest are commands to execute
 
     local -A kpsta_state_map=()
     kgit_proc_sub_begin kpsta_state_map "${@}"
     local fd=${kpsta_state_map['fd']}
-    mapfile -t "${array_name}" <&"${fd}"
+    mapfile "${mapfile_args[@]}" "${array_name}" <&"${fd}"
     kgit_proc_sub_end kpsta_state_map
 }
 
@@ -569,6 +578,97 @@ kgit_cmd_retag_and_push() {
     "${kgit_exec[@]}" tag -d "${tag}" || return 1
     "${kgit_exec[@]}" tag "${tag}" || return 1
     "${kgit_exec[@]}" push --force "${remote}" "${tag}" || return 1
+}
+
+kgit_get_default_local_branch() {
+    local remote=${1}; shift
+    local -n branch_ref=${1}; shift
+    # using git name-rev --name-only refs/remotes/${remote}/HEAD
+    # doesn't work, with multiple remotes it may return garbage
+
+    local -a kgdlb_worktree_lines
+    kgit_proc_sub_to_array -z kgdlb_worktree_lines "${kgit_exec[@]}" worktree list --porcelain -z || return 1
+    local main_worktree=${kgdlb_worktree_lines[0]#'worktree '}
+    unset 'kgdlb_worktree_lines'
+    local ref_prefix="refs/remotes/${remote}/" ignore ref
+    read -r ignore ref <"${main_worktree}/.git/${ref_prefix}/HEAD"
+    branch_ref=${ref#"${ref_prefix}"}
+}
+
+kgit_cmd_agit_push() {
+    if [[ -n ${KGIT_HELP:-} ]]; then
+        kgit_msg2 "kgit ${kgit_cmd}"
+        kgit_msg2 "    pushes HEAD to the repository using AGit protocol"
+        kgit_msg2 "    flags:"
+        kgit_msg2 "    -f           add -o force-push=true option"
+        kgit_msg2 "    -t <name>    use this as a target branch"
+        return 0
+    fi
+    local force='' target_branch=''
+    while [[ ${#} -gt 0 ]]; do
+        case ${1} in
+            -f)
+                force=x
+                shift
+                ;;
+            -t)
+                target_branch=${2}
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            -*)
+                kgit_msg2 "unknown flag ${1@Q}"
+                return 1
+                ;;
+            *)
+                break
+                ;;
+        esac
+    done
+    kgit_req_params_eq 1 "${@}" || {
+        kgit_msg2 "${kgit_cmd@Q} takes one argument: a remote name"
+        return 1
+    }
+    local remote=${1}; shift
+
+    kgit_verify_remote "${remote}" || return 1
+
+    local args=() branch
+
+    if [[ -n ${force} ]]; then
+        args+=( -o force-push=true )
+    fi
+
+    if [[ -z ${target_branch} ]]; then
+        local kcap_target_branch
+        kgit_get_default_local_branch "${remote}" kcap_target_branch || return 1
+        target_branch=${kcap_target_branch}
+        unset 'kcap_target_branch'
+    fi
+    if [[ -z ${target_branch} ]]; then
+        local kcap_default_branch kcap_ambiguous_branches=()
+        kgit_get_default_branch "${remote}" kcap_default_branch kcap_ambiguous_branches
+        if [[ -n ${kcap_default_branch} ]]; then
+            target_branch=${kcap_default_branch}
+        fi
+        unset 'kcap_default_branch' 'kcap_ambiguous_branches'
+    fi
+    if [[ -z ${target_branch} ]]; then
+        kgit_msg2 "could not figure out default target branch for remote ${remote}"
+        kgit_msg2 "use -t flag to specify"
+        return 1
+    fi
+
+    branch=$("${kgit_exec[@]}" branch --show-current) || return 1
+    args+=(
+        "${remote}"
+        "HEAD:refs/for/${target_branch}/${branch}"
+    )
+
+    echo "${kgit_exec[@]}" push "${args[@]}" || return 1
 }
 
 kgit_list_cmds() {
