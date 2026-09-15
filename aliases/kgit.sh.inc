@@ -345,6 +345,49 @@ kgit_cmd_fpush() {
     "${kgit_exec[@]}" push --force-with-lease "${@}" || return 1
 }
 
+kgit_get_default_branch() {
+    local remote=${1}; shift
+    local -n default_branch_ref=${1}; shift
+    local -n ambiguous_branches_ref=${1}; shift
+
+    local fields=() ambiguous_branches=()
+    local default_branch HEAD_sha
+
+    set -x
+
+    while read -r -a fields; do
+        if [[ ${#fields[@]} -ge 3 && ${fields[0]} = 'ref:' && ${fields[2]} = 'HEAD' ]]; then
+            default_branch=${fields[1]#refs/heads/}
+            break
+        fi
+        if [[ ${#fields[@]} -ge 2 && ${fields[1]} = 'HEAD' ]]; then
+            HEAD_sha=${fields[0]}
+        fi
+    done < <("${kgit_exec[@]}" ls-remote --symref "${remote}" HEAD)
+    local branch
+    if [[ -z ${default_branch} ]]; then
+        while read -r -a fields; do
+            if [[ ${#fields[@]} -ge 2 && ${fields[0]} = "${HEAD_sha}" ]]; then
+                branch=${fields[1]#refs/heads/}
+                if [[ -z ${default_branch} && ${#ambiguous_branches[@]} -eq 0 ]]; then
+                    default_branch=${branch}
+                else
+                    if [[ -n ${default_branch} ]]; then
+                        ambiguous_branches+=( "${default_branch}" )
+                        default_branch=''
+                    fi
+                    ambiguous_branches+=( "${branch}" )
+                fi
+            fi
+        done < <("${kgit_exec[@]}" ls-remote --branches "${remote}")
+    fi
+
+    set +x
+
+    default_branch_ref=${default_branch}
+    ambiguous_branches_ref=( "${ambiguous_branches[@]}" )
+}
+
 kgit_cmd_clone() {
     if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} <url>"
@@ -353,11 +396,16 @@ kgit_cmd_clone() {
         kgit_msg2 '    the overrides file contains key=value pairs that are forwarded to git config --local'
         kgit_msg2 '    flags:'
         kgit_msg2 '    -d <directory>    directory name to use instead of basename of <url>'
+        kgit_msg2 '    -b <name>         use this as a default branch name'
         return 0
     fi
-    local dir=''
+    local dir='' forced_branch=''
     while [[ ${#} -gt 0 ]]; do
         case ${1} in
+            -b)
+                forced_branch=${2}
+                shift 2
+                ;;
             -d)
                 dir=${2}
                 shift 2
@@ -380,57 +428,27 @@ kgit_cmd_clone() {
         return 1
     }
     local repo=${1}; shift
-    local first second third
-    local commit_hash ref head_hash old_head
-    local -A commit_hash_to_shortest_ref
-    local default_branch shortest_ref
-    while read -r first second third; do
-        if [[ ${#first} -ne 40 || ! ${first} =~ ^[0-9a-zA-Z]*$ ]]; then
-            if [[ ${first} = 'ref:' && ${third} = 'HEAD' && ${second} = refs/heads/* ]]; then
-                default_branch=${second#'refs/heads/'}
-                break
+    if [[ -z ${forced_branch} ]]; then
+        local kcc_default_branch kcc_ambiguous_branches=()
+        kgit_get_default_branch "${repo}" kcc_default_branch kcc_ambiguous_branches
+        local default_branch=${kcc_default_branch} ambiguous_branches=( "${kcc_ambiguous_branches[@]}" )
+        unset 'kcc_default_branch' 'kcc_ambiguous_branches'
+        if [[ -z ${default_branch} ]]; then
+            if [[ ${#ambiguous_branches[@]} -gt 0 ]]; then
+                kgit_msg2 "could not find unambiguous default branch in repo"
+                kgit_msg2 "the following branches share the commit hash of HEAD: ${ambiguous_branches[@]@Q}"
+                kgit_msg2 "use -b flag to select one"
+            else
+                kgit_msg2 "could not find a default branch in repo"
+                kgit_msg2 "there seem to be no heads in repo?"
+                kgit_msg2 "use -b flag to tell the default branch name"
             fi
-            continue
+            return 1
         fi
-        commit_hash=${first}
-        ref=${second}
-        case ${ref} in
-            'HEAD')
-                head_hash=${commit_hash}
-                ;;
-            'refs/heads/'*)
-                ref=${ref#'refs/heads/'}
-                old_head=${commit_hash_to_shortest_ref["${commit_hash}"]:-}
-                if [[ -z ${old_head} || ${#old_head} -gt ${#ref} ]]; then
-                    commit_hash_to_shortest_ref["${commit_hash}"]=${ref}
-                fi
-                if [[ -z ${shortest_ref} || ${#shortest_ref} -gt ${#ref} ]]; then
-                    shortest_ref=${ref}
-                fi
-                ;;
-        esac
-    done < <("${kgit_exec[@]}" ls-remote --symref "${repo}")
-    if [[ -z ${default_branch:-} ]]; then
-        if [[ -n ${head_hash:-} ]]; then
-            default_branch=${commit_hash_to_shortest_ref["${head_hash}"]}
-        fi
-    fi
-    local printed=''
-    if [[ -z ${printed} && -n ${default_branch:-} ]]; then
-        kgit_msg2 "Default branch is ${default_branch}"
-        printed=x
     else
-        default_branch=${shortest_ref:-}
+        default_branch=${forced_branch}
     fi
-    if [[ -z ${printed} && -n ${default_branch:-} ]]; then
-        kgit_msg2 "No branch points to HEAD, picking one with shortest name - ${default_branch}"
-        printed=x
-    fi
-    if [[ -z ${printed} && -z ${default_branch:-} ]]; then
-        default_branch=master
-        kgit_msg2 "No heads in repo? Assuming default branch as ${default_branch}"
-        printed=x
-    fi
+    kgit_msg2 "Default branch is ${default_branch}"
     if [[ -z ${dir} ]]; then
         local disable_extglob
         dir=${repo}
