@@ -362,8 +362,6 @@ kgit_get_default_branch() {
     local fields=() ambiguous_branches=()
     local default_branch HEAD_sha
 
-    set -x
-
     while read -r -a fields; do
         if [[ ${#fields[@]} -ge 3 && ${fields[0]} = 'ref:' && ${fields[2]} = 'HEAD' ]]; then
             default_branch=${fields[1]#refs/heads/}
@@ -390,8 +388,6 @@ kgit_get_default_branch() {
             fi
         done < <("${kgit_exec[@]}" ls-remote --branches "${remote}")
     fi
-
-    set +x
 
     default_branch_ref=${default_branch}
     ambiguous_branches_ref=( "${ambiguous_branches[@]}" )
