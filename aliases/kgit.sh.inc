@@ -131,6 +131,25 @@ kgit_find_dir_with_dot_git() {
     return 1
 }
 
+kgit_verify_remote() {
+    local remote=${1}; shift
+
+    local -a kvr_remotes
+    kgit_proc_sub_to_array kvr_remotes "${kgit_exec[@]}" remote || return 1
+    local known_remote found=''
+    for known_remote in "${kvr_remotes[@]}"; do
+        if [[ ${known_remote} = "${remote}" ]]; then
+            found=x
+            break
+        fi
+    done
+    if [[ -z ${found} ]]; then
+        kgit_msg2 "remote ${remote@Q} is not known"
+        return 1
+    fi
+    return 0
+}
+
 kgit_cmd_wt_add() {
     if [[ -n ${KGIT_HELP:-} ]]; then
         kgit_msg2 "kgit ${kgit_cmd} [<flags>] [--] <name>"
@@ -150,6 +169,7 @@ kgit_cmd_wt_add() {
         case ${1} in
             -u)
                 u=${2}
+                kgit_verify_remote "${u}" || return 1
                 shift 2
                 ;;
             -s)
@@ -526,19 +546,8 @@ kgit_cmd_retag_and_push() {
     if ! "${kgit_exec[@]}" show-ref --tags --quiet "${tag}"; then
         kgit_msg2 "tag ${tag@Q} does not exist"
     fi
-    local -a kcrap_remotes
-    kgit_proc_sub_to_array kcrap_remotes "${kgit_exec[@]}" remote || return 1
-    local known_remote found=''
-    for known_remote in "${kcrap_remotes[@]}"; do
-        if [[ ${known_remote} = "${remote}" ]]; then
-            found=x
-            break
-        fi
-    done
-    if [[ -z ${found} ]]; then
-        kgit_msg2 "remote ${remote@Q} is not known"
-        return 1
-    fi
+    kgit_verify_remote "${remote}" || return 1
+
     "${kgit_exec[@]}" tag -d "${tag}" || return 1
     "${kgit_exec[@]}" tag "${tag}" || return 1
     "${kgit_exec[@]}" push --force "${remote}" "${tag}" || return 1
