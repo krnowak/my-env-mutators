@@ -136,10 +136,10 @@ kgit_cmd_wt_add() {
         kgit_msg2 "kgit ${kgit_cmd} [<flags>] [--] <name>"
         kgit_msg2 '    creates a branch krnowak/<name>, creates a worktree at location neighbouring the current worktree with passed name and cds to it'
         kgit_msg2 '    flags:'
-        kgit_msg2 '    -u <remote>       upstream name used for tracking (defaults to origin)'
-        kgit_msg2 '    -s                track upstream branch with the same name'
-        kgit_msg2 '    -o <other_name>   track upstream branch <other_name>'
-        kgit_msg2 '    -l <local_name>   base on <local_name> branch instead of current branch'
+        kgit_msg2 '    -u <remote>        upstream name used for tracking (defaults to origin)'
+        kgit_msg2 '    -s                 track upstream branch with the same name'
+        kgit_msg2 '    -o <other_name>    track upstream branch <other_name>'
+        kgit_msg2 '    -l <local_name>    base on <local_name> branch instead of current branch'
         return 0
     fi
     local top_dir sub_dir
